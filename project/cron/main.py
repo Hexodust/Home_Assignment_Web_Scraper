@@ -1,4 +1,4 @@
-from project import create_app, db  # Importăm creatorul aplicației și obiectul bazei de date
+from project import create_app, db
 from project.models.product import Product
 from project.services.scraping_service import run_scraper
 

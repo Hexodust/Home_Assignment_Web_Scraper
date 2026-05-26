@@ -7,7 +7,6 @@ products_blueprint = Blueprint('products', __name__)
 
 @products_blueprint.route('/products')
 def index():
-    # Apelăm metoda prin intermediul clasei Product
     products = Product.get_all_products()
     return render_template('products/index.html', products=products)
 

@@ -6,6 +6,52 @@ from flask import Blueprint, render_template, request, Response, flash, redirect
 
 invoice_bp = Blueprint('invoice', __name__)
 
+_CURRENCY_RE = re.compile(r'^[A-Z]{3}$')
+_NUMBER_RE = re.compile(r'^-?\d+(?:[.,]\d+)?$')
+_COUNTRY_RE = re.compile(r'^[A-Z]{2}$')
+
+
+def _build_code_mapping(all_lines):
+    mapping = {}
+    for line in all_lines:
+        m = re.search(r'pentru\s+linia\s+(\d+)\s*:\s*(\S+)', line, re.IGNORECASE)
+        if m:
+            mapping[m.group(1)] = m.group(2).strip()
+    return mapping
+
+
+def _row_from_tokens(tokens, code_mapping):
+    if len(tokens) < 9 or not tokens[0].isdigit():
+        return None
+    cur_idx = next(
+        (i for i, p in enumerate(tokens)
+         if _CURRENCY_RE.match(p) and i >= 2 and _NUMBER_RE.match(tokens[i - 1])),
+        None,
+    )
+    if cur_idx is None or cur_idx + 2 >= len(tokens):
+        return None
+
+    nr_linie = tokens[0]
+    pret_unitar = tokens[cur_idx - 1]
+    moneda = tokens[cur_idx]
+    cantitate = tokens[cur_idx + 2]
+
+    name_tokens = tokens[1:cur_idx - 1]
+    if name_tokens and _COUNTRY_RE.match(name_tokens[-1]):
+        name_tokens = name_tokens[:-1]
+
+    cod = code_mapping.get(nr_linie) or (name_tokens[0] if name_tokens else 'Necunoscut')
+    if name_tokens and name_tokens[0] == cod:
+        name_tokens = name_tokens[1:]
+
+    return {
+        'cod': cod,
+        'denumire': ' '.join(name_tokens),
+        'pret_unitar': pret_unitar,
+        'moneda': moneda,
+        'cantitate': cantitate,
+    }
+
 
 @invoice_bp.route('/upload-invoice', methods=['GET', 'POST'])
 def upload_invoice():
@@ -23,103 +69,39 @@ def upload_invoice():
             extracted_data = []
 
             with pdfplumber.open(io.BytesIO(file.read())) as pdf:
-                # Colectăm toate liniile de text din toate paginile într-o singură listă globală
                 all_lines = []
                 for page in pdf.pages:
                     text = page.extract_text()
                     if text:
-                        all_lines.extend([l.strip() for l in text.split('\n') if l.strip()])
+                        all_lines.extend(l.strip() for l in text.split('\n') if l.strip())
 
-                raw_products = []
-                code_mapping = {}
+                code_mapping = _build_code_mapping(all_lines)
 
-                # Pasul 1: Scanăm textul pentru a extrage produsele și identificatorii
-                for idx, line in enumerate(all_lines):
+                # Anchor on the product-table header:
+                header_idx = next(
+                    (i for i, l in enumerate(all_lines)
+                     if l.startswith('Linia') and 'Nume articol' in l),
+                    None,
+                )
 
-                    # Cazul A: Linie de produs (conține RON)
-                    if "RON" in line:
-                        parts = line.split()
-                        if len(parts) >= 5:
-                            try:
-                                ron_idx = parts.index("RON")
-                                pret_unitar = parts[ron_idx - 1]
+                if header_idx is None:
+                    flash('Tabelul de produse (header "Linia ... Nume articol") nu a fost gasit in PDF.')
+                    return redirect(request.url)
 
-                                # Cantitatea facturată
-                                if ron_idx + 2 < len(parts):
-                                    cantitate = parts[ron_idx + 2]
-                                else:
-                                    cantitate = parts[-1]
-
-                                # Reconstruim textul din stânga prețului
-                                left_text = " ".join(parts[:ron_idx - 1]).strip()
-
-                                # Încercăm să vedem dacă numărul liniei s-a lipit la final (ex: "... 1")
-                                nr_linie = "1"
-                                match_nr = re.search(r'\s+(\d+)$', left_text)
-                                if match_nr:
-                                    nr_linie = match_nr.group(1)
-                                    left_text = re.sub(r'\s+\d+$', '', left_text).strip()
-
-                                # Eliminăm duplicarea codului de la începutul denumirii dacă există
-                                desc_parts = left_text.split()
-                                if len(desc_parts) > 1 and desc_parts[0] == desc_parts[1]:
-                                    left_text = " ".join(desc_parts[1:])
-
-                                # Verificare de siguranță pentru a nu lua antete sau totaluri
-                                if "TOTAL" not in left_text.upper() and "VALOARE" not in left_text.upper() and "MONEDA" not in left_text.upper():
-                                    raw_products.append({
-                                        'nr_linie': nr_linie,
-                                        'denumire': left_text,
-                                        'pret_unitar': pret_unitar,
-                                        'moneda': "RON",
-                                        'cantitate': cantitate
-                                    })
-                            except Exception:
-                                continue
-
-                    # Cazul B: Linie salvatoare de cod (Identificator vanzator)
-                    elif "Identificator vanzator" in line or "articol pentru linia" in line:
-                        match_code = re.search(r'linia\s+(\d+)\s*:\s*(.+)', line, re.IGNORECASE)
-                        if match_code:
-                            nr_linie_id = match_code.group(1)
-                            cod_articol = match_code.group(2).strip()
-                            code_mapping[nr_linie_id] = cod_articol
-
-                # Pasul 2: Corelăm produsele cu codurile lor reale pe baza numărului de linie
-                for prod in raw_products:
-                    nr = prod['nr_linie']
-                    # Dacă am găsit codul în text, îl punem, altfel lăsăm primul cuvânt din denumire ca fallback
-                    if nr in code_mapping:
-                        prod_code = code_mapping[nr]
-                    else:
-                        words = prod['denumire'].split()
-                        prod_code = words[0] if words else "Necunoscut"
-
-                    # Curățăm denumirea finală să nu mai conțină codul în ea
-                    final_desc = prod['denumire']
-                    if final_desc.startswith(prod_code):
-                        final_desc = final_desc[len(prod_code):].strip()
-
-                    extracted_data.append({
-                        'cod': prod_code,
-                        'denumire': final_desc,
-                        'pret_unitar': prod['pret_unitar'],
-                        'moneda': prod['moneda'],
-                        'cantitate': prod['cantitate']
-                    })
+                for line in all_lines[header_idx + 1:]:
+                    prod = _row_from_tokens(line.split(), code_mapping)
+                    if prod:
+                        extracted_data.append(prod)
 
             # Generarea fișierului CSV final
             output = io.StringIO()
             writer = csv.writer(output)
 
-            # Capul de tabel standard solicitat
             writer.writerow(['Cod produs', 'Denumire produs', 'Pret unitar', 'Moneda', 'Cantitate'])
 
-            # Adăugăm produsele extrase
             for item in extracted_data:
                 writer.writerow([item['cod'], item['denumire'], item['pret_unitar'], item['moneda'], item['cantitate']])
 
-            # Curățăm extensia în mod sigur pentru browser
             safe_filename = "extras_factura.csv"
             if file.filename:
                 base_name = file.filename.rsplit('.', 1)[0]

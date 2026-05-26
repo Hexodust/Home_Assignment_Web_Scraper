@@ -21,7 +21,6 @@ def run_scraper():
         page.wait_for_load_state("networkidle")
         print("Autentificare reusita!")
 
-        # Navigare catre pagina 'consumables'
         print("Navigare catre produse...")
         page.goto("https://www.web-scraping.dev/products?category=consumables")
         page.wait_for_load_state("networkidle")
@@ -33,16 +32,13 @@ def run_scraper():
             url_curent = page.url
             print(f"Scraping pagina {pagina_curenta}... (URL: {url_curent})")
 
-            # --- SIGURANȚĂ 1: Dacă URL-ul nu s-a schimbat față de tura trecută, am terminat ---
             if url_curent == url_anterior:
                 print("URL-ul nu s-a schimbat după click. S-a ajuns la capăt!")
                 break
             url_anterior = url_curent
 
-            # Extragere produse de pe pagina curentă
             product_elements = page.query_selector_all(".product")
 
-            # --- SIGURANȚER 2: Dacă pagina e goală și nu are produse, oprim bucla ---
             if not product_elements:
                 print("Nu s-au mai găsit produse pe această pagină. Scraping complet!")
                 break
@@ -71,7 +67,6 @@ def run_scraper():
                     print(f"Eroare la extragerea unui produs: {e}")
                     continue
 
-            # --- LOGICA DE PAGINARE DINAMICĂ ---
             next_button = page.locator(".paging a:has-text('>')")
 
             if next_button.count() > 0 and next_button.is_visible():

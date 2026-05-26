@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 FROM python:3.11-slim
 
 LABEL maintainer="me@salimane.com" \
@@ -24,37 +25,40 @@ LABEL com.salimane.component.build-date="$BUILD_DATE" \
 ENV LANG=en_US.UTF-8 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
     SECRET_KEY="3e8220bf2c657de2b5dfc2d07663db36ad4088c1407f94ee014fbd0c715815aa"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    build-essential \
-    libffi-dev \
-    libssl-dev \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# System packages — single layer, BuildKit cache mounts keep apt downloads across builds.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+      gcc \
+      build-essential \
+      libffi-dev \
+      libssl-dev \
+      libpq-dev \
+      cron
 
 WORKDIR /opt/flask
 
-RUN apt-get update && apt-get install -y --no-install-recommends cron && rm -rf /var/lib/apt/lists/*
-
-# Install dependencies first (cached layer unless requirements.txt changes)
+# Python deps — only re-runs when requirements.txt changes; pip wheel cache persists across builds.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -U pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -U pip && \
+    pip install -r requirements.txt
 
+# Playwright browsers + their system deps — only re-runs when requirements.txt changes.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    playwright install --with-deps chromium
 
-RUN playwright install --with-deps chromium
-# ----------------------------------
-
-# Copy application source
+# Copy application source (this is the only layer that rebuilds on a code change).
 COPY . .
 
 COPY cronjob /etc/cron.d/scraper-cron
-
-RUN chmod 0644 /etc/cron.d/scraper-cron
-
-RUN touch /var/log/cron_scraper.log
+RUN chmod 0644 /etc/cron.d/scraper-cron && touch /var/log/cron_scraper.log
 
 EXPOSE 16000
 

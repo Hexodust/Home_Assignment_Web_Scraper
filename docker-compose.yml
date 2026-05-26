@@ -1,7 +1,10 @@
-version: '3.8'
 services:
   web:
-    build: .
+    build:
+      context: .
+      cache_from:
+        - home_assignment_web_scraper-web:latest
+    image: home_assignment_web_scraper-web:latest
     ports:
       - "16000:16000"
     environment:
@@ -10,7 +13,9 @@ services:
     env_file:
       - .env
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    restart: on-failure
 
   postgres:
     image: postgres:15.2-alpine
@@ -22,6 +27,11 @@ services:
       POSTGRES_PASSWORD: flask
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flask -d flask_dev"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
 
 volumes:
   postgres_data:

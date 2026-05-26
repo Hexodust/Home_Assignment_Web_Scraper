@@ -3,6 +3,7 @@ __version__ = "0.1"
 from flask import Flask
 from flask_debugtoolbar import DebugToolbarExtension
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import SQLAlchemyError
 
 from project.config import config
 
@@ -24,12 +25,22 @@ def create_app(config_name=None):
     toolbar.init_app(app)
     db.init_app(app)
 
-    from project.controllers.printer import printer_bp
+    from project.controllers.home import home_bp
     from project.controllers.products import products_blueprint
     from project.controllers.invoice import invoice_bp
 
-    app.register_blueprint(printer_bp)
+    app.register_blueprint(home_bp)
     app.register_blueprint(products_blueprint)
     app.register_blueprint(invoice_bp)
+
+    with app.app_context():
+        from project.models import product  # noqa: F401 — register model with SQLAlchemy
+        try:
+            db.create_all()
+        except SQLAlchemyError:
+            # Race when multiple gunicorn workers boot at the same time and
+            # all try to CREATE TABLE. First worker wins, others get a
+            # duplicate-key error on pg_class — table exists, safe to ignore.
+            db.session.rollback()
 
     return app

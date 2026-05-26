@@ -1,0 +1,8 @@
+{% extends "layout/layout.html" %}
+{% block body %}
+    <h2>Meniu</h2>
+    <ul>
+        <li><a href="{{ url_for('products.index') }}">Produse (Web Scraping)</a></li>
+        <li><a href="{{ url_for('invoice.upload_invoice') }}">Prelucrare Factură PDF</a></li>
+    </ul>
+{% endblock %}
