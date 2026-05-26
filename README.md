@@ -1,6 +1,6 @@
 # Flask MVC - Proba Practica Autobrand
 
-O aplicație web în Python (Flask) bazată pe arhitectura MVC, complet containerizată cu Docker. Proiectul extinde structura open-source [flask-mvc](https://github.com/salimane/flask-mvc) cu funcționalități de extragere date din facturi PDF (e-Factura) în CSV și un task automatizat (cron) care rulează la 2 minute.
+O aplicație web în Python (Flask) bazată pe arhitectura MVC, complet containerizată cu Docker. Proiectul extinde structura open-source [flask-mvc](https://github.com/salimane/flask-mvc) cu funcționalități de extragere date din facturi PDF (e-Factura) în CSV și un task automatizat (cron) care rulează in fiecare ora in intervalul orar 12-18.
 
 ---
 
