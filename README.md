@@ -24,9 +24,9 @@ docker-compose up --build
 ```
 
 #### 3.  Accesează aplicația
-După ce procesul s-a finalizat, deschide browserul la adresele:
+După ce procesul s-a finalizat, deschide browserul la adresea:
 
-Pagina principală: http://localhost:16000
+http://localhost:16000
 
 #### 4.  Oprirea aplicației
 Pentru a opri serverul, apasă Ctrl + C în terminalul în care rulează.
