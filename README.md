@@ -58,13 +58,7 @@ Următoarele funcționalități reprezintă îmbunătățiri planificate pentru 
 ### 2. Filtrare și Sortare în Interfața Web
 * **Obiectiv**: Permiterea utilizatorului să caute rapid produse sau să le ordoneze după preț/cantitate în tabel.
 * **Abordare aleasă**:
-  Modificarea rutei de vizualizare pentru a accepta parametrii de query (ex: `/products?sort_by=price&order=desc&search=febi`). În loc de un simplu `.all()`, interogarea bazei de date se va face dinamic:
-    ```python
-    query = Product.query
-    if search_keyword:
-        query = query.filter(Product.denumire.ilike(f"%{search_keyword}%"))
-    if sort_by == 'price':
-        query = query.order_by(Product.pret_unitar.desc() if order == 'desc' else Product.pret_unitar.asc())
+  Modificarea rutei de vizualizare pentru a accepta parametrii de query (ex: `/products?sort_by=price&order=desc&search=febi`). În loc de un simplu `.all()`, interogarea bazei de date se va face dinamic.r_by(Product.pret_unitar.desc() if order == 'desc' else Product.pret_unitar.asc())
     ```
    Pe lânga asta este necesară adăugarea unui câmp de text de tip `Input` (căutare) și a unor săgeți de sortare pe capul de tabel în `index.html`, trimise către backend prin formulare simple sau link-uri dinamice.
 
