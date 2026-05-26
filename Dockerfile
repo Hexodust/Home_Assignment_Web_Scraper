@@ -23,7 +23,8 @@ LABEL com.salimane.component.build-date="$BUILD_DATE" \
 
 ENV LANG=en_US.UTF-8 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    SECRET_KEY="3e8220bf2c657de2b5dfc2d07663db36ad4088c1407f94ee014fbd0c715815aa"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
@@ -34,6 +35,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/flask
+
+RUN apt-get update && apt-get install -y --no-install-recommends cron && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies first (cached layer unless requirements.txt changes)
 COPY requirements.txt .
@@ -47,6 +50,12 @@ RUN playwright install --with-deps chromium
 # Copy application source
 COPY . .
 
+COPY cronjob /etc/cron.d/scraper-cron
+
+RUN chmod 0644 /etc/cron.d/scraper-cron
+
+RUN touch /var/log/cron_scraper.log
+
 EXPOSE 16000
 
-CMD ["gunicorn", "runserver:app", "--bind", "0.0.0.0:16000", "--workers", "4", "--threads", "2", "--worker-class", "sync"]
+CMD ["sh", "-c", "env > /etc/environment && cron && gunicorn runserver:app --bind 0.0.0.0:16000 --workers 4 --threads 2 --worker-class sync"]

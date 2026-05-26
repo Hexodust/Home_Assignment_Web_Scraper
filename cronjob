@@ -1,0 +1,1 @@
+0 12-18 * * * root cd /opt/flask && /usr/local/bin/python -m project.cron.main >> /var/log/cron_scraper.log 2>&1
