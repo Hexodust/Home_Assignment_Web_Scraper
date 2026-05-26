@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Produse Extrase - Web Scraping</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f9f9f9; }
+        h1 { color: #333; }
+        .actions-bar { margin-bottom: 20px; }
+        .btn { padding: 8px 12px; text-decoration: none; color: white; border-radius: 4px; border: none; cursor: pointer; font-size: 14px; }
+        .btn-primary { background-color: #28a745; }
+        .btn-primary:hover { background-color: #218838; }
+        .btn-edit { background-color: #007bff; display: inline-block; margin-right: 5px; }
+        .btn-edit:hover { background-color: #0069d9; }
+        .btn-delete { background-color: #dc3545; }
+        .btn-delete:hover { background-color: #c82333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: top; }
+        th { background-color: #f4f4f4; color: #555; }
+        tr:hover { background-color: #f1f1f1; }
+        img { max-width: 60px; height: auto; display: block; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <h1>Gestiune Produse (Web Scraping)</h1>
+
+    <div class="actions-bar">
+        <a href="{{ url_for('products.trigger_scraper') }}" class="btn btn-primary">🔄 Rulează Scraper Acum (Playwright)</a>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Poza</th>
+                <th>Denumire produs</th>
+                <th>Preț</th>
+                <th>Descriere</th>
+                <th>Acțiuni</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>
+                    {% if product.image_url %}
+                        <img src="{{ product.image_url }}" alt="Imagine produs">
+                    {% else %}
+                        <span style="color: #999; font-size: 12px;">Fără imagine</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ product.title }}</strong></td>
+                <td><span style="color: #28a745; font-weight: bold;">{{ product.price }}</span></td>
+                <td>{{ product.description }}</td>
+                <td>
+                    <a href="{{ url_for('products.edit', product_id=product.id) }}" class="btn btn-edit">Editare</a>
+
+                    <form action="{{ url_for('products.delete', product_id=product.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-delete" onclick="return confirm('Sigur vrei să ștergi acest produs?')">Ștergere</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+
+            {% if not products %}
+            <tr>
+                <td colspan="5" style="text-align: center; color: #777; padding: 20px;">
+                    Nu există produse în baza de date. Apasă pe butonul de mai sus pentru a popula tabelul!
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+</body>
+</html>

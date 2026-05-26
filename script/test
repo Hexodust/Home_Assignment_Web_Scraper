@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e -x
+
+export REPO_DIR=$( cd $(dirname "`dirname $0`") && pwd )
+if [ -z "$PYTHON_VIRTUALENV" ]; then
+    export PYTHON_VIRTUALENV=".test-venv-`uname -s`-`uname -m`"
+fi
+export VIRTUAL_ENV_DIR="$REPO_DIR/$PYTHON_VIRTUALENV"
+python -m venv $PYTHON_VIRTUALENV
+echo "Using virtualenv located in : $VIRTUAL_ENV_DIR"
+. "$VIRTUAL_ENV_DIR/bin/activate"
+pip install -q -r $REPO_DIR/requirements-test.txt
+
+cd $REPO_DIR
+export PYTHONPATH=".:`pwd`"
+
+echo "==> Format check (black)"
+black --check --diff .
+echo "==> Lint (ruff)"
+ruff check .
+echo "==> Executing tests with code coverage collection"
+pytest --cov=project --cov-report=html --cov-report=term-missing tests/
+
