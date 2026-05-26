@@ -29,3 +29,4 @@ cssmin==0.2.0
 jsmin==3.0.1
 playwright
 psycopg2-binary==2.9.9
+pdfplumber

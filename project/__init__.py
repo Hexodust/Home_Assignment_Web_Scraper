@@ -26,8 +26,10 @@ def create_app(config_name=None):
 
     from project.controllers.printer import printer_bp
     from project.controllers.products import products_blueprint
+    from project.controllers.invoice import invoice_bp
 
     app.register_blueprint(printer_bp)
     app.register_blueprint(products_blueprint)
+    app.register_blueprint(invoice_bp)
 
     return app
